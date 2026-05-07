@@ -1,0 +1,16 @@
+---
+export const prerender = false;
+
+import OnboardingLayout from '@/layouts/OnboardingLayout.astro';
+---
+
+<OnboardingLayout step={2} title="Crea tu cuenta">
+  <div class="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+    <p class="text-gray-600">
+      Paso 2: Registro — Aquí irá el formulario de registro con Google OAuth y email/password.
+    </p>
+    <p class="mt-4 text-sm text-gray-400">
+      Island <code>RegisterForm.tsx</code> pendiente de implementación.
+    </p>
+  </div>
+</OnboardingLayout>

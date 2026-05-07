@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Disallow: /register
+Disallow: /setup
+Disallow: /upload
+Disallow: /processing
+Disallow: /preview/
+
+Sitemap: https://mitienda.com/sitemap-index.xml

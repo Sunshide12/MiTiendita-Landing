@@ -1,0 +1,127 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Button from '@/components/ui/Button.astro';
+
+const seo = {
+  title: 'MiTienda — Crea tu tienda online gratis en 5 minutos',
+  description:
+    'Sube las fotos de tus productos y nuestra IA crea tu catálogo automáticamente. Sin conocimientos técnicos. Empieza gratis hoy.',
+  canonical: 'https://mitienda.com',
+};
+---
+
+<BaseLayout title={seo.title} description={seo.description} canonical={seo.canonical}>
+  <main>
+    <!-- Hero Section -->
+    <section class="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-primary-50">
+      <div class="mx-auto max-w-5xl px-4 py-20 sm:py-28 text-center">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 rounded-full bg-primary-100 px-4 py-1.5 text-sm font-medium text-primary-700 mb-6">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+          </span>
+          Impulsado por Inteligencia Artificial
+        </div>
+
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+          MiTienda — Crea tu tienda<br />
+          <span class="text-primary-600">online gratis</span>
+        </h1>
+
+        <p class="mx-auto max-w-2xl text-lg sm:text-xl text-gray-600 mb-10 leading-relaxed">
+          Sube las fotos de tus productos y nuestra inteligencia artificial crea tu catálogo
+          automáticamente. Empieza a vender por internet en menos de 5 minutos, sin conocimientos
+          técnicos.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button href="/register" size="lg" variant="primary">
+            Crea tu tienda gratis →
+          </Button>
+          <Button href="#como-funciona" size="lg" variant="secondary">
+            ¿Cómo funciona?
+          </Button>
+        </div>
+
+        <!-- Trust indicators -->
+        <p class="mt-8 text-sm text-gray-500">
+          ✓ Sin tarjeta de crédito &nbsp; ✓ Gratis para siempre &nbsp; ✓ Listo en 5 minutos
+        </p>
+      </div>
+
+      <!-- Decorative gradient blobs -->
+      <div class="absolute top-0 left-1/4 w-72 h-72 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+      <div class="absolute bottom-0 right-1/4 w-72 h-72 bg-primary-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style="animation-delay: 2s;"></div>
+    </section>
+
+    <!-- How it works Section -->
+    <section id="como-funciona" class="py-20 bg-white">
+      <div class="mx-auto max-w-5xl px-4">
+        <h2 class="text-3xl font-bold text-center text-gray-900 mb-4">
+          ¿Cómo crear una tienda online?
+        </h2>
+        <p class="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+          Solo 3 pasos te separan de tu tienda. Sin complicaciones.
+        </p>
+
+        <div class="grid md:grid-cols-3 gap-8">
+          <!-- Step 1 -->
+          <div class="relative text-center p-6 rounded-2xl bg-gray-50 border border-gray-100">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-100 text-primary-600 font-bold text-xl mb-4">
+              1
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Sube tus fotos</h3>
+            <p class="text-gray-600 text-sm">
+              Arrastra o selecciona las fotos de los productos que quieres vender.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative text-center p-6 rounded-2xl bg-gray-50 border border-gray-100">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-100 text-primary-600 font-bold text-xl mb-4">
+              2
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">La IA genera tu catálogo</h3>
+            <p class="text-gray-600 text-sm">
+              Nuestra inteligencia artificial extrae nombre, descripción y precio sugerido de cada producto.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative text-center p-6 rounded-2xl bg-gray-50 border border-gray-100">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-100 text-primary-600 font-bold text-xl mb-4">
+              3
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Activa y vende</h3>
+            <p class="text-gray-600 text-sm">
+              Conecta tu cuenta bancaria y tu tienda estará lista para recibir pedidos en minutos.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-16 bg-primary-600">
+      <div class="mx-auto max-w-3xl px-4 text-center">
+        <h2 class="text-3xl font-bold text-white mb-4">
+          ¿Listo para empezar?
+        </h2>
+        <p class="text-primary-100 mb-8 text-lg">
+          Crea tu tienda online gratis en menos de 5 minutos.
+        </p>
+        <Button href="/register" size="lg" variant="secondary">
+          Crear mi tienda ahora →
+        </Button>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 bg-gray-900 text-gray-400 text-sm">
+      <div class="mx-auto max-w-5xl px-4 text-center">
+        <p>© {new Date().getFullYear()} MiTienda. Todos los derechos reservados.</p>
+      </div>
+    </footer>
+  </main>
+</BaseLayout>
