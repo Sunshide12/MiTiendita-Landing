@@ -1,0 +1,19 @@
+---
+export const prerender = false;
+
+import OnboardingLayout from '@/layouts/OnboardingLayout.astro';
+
+const { storeId } = Astro.params;
+---
+
+<OnboardingLayout step={6} title="Preview de tu tienda">
+  <div class="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+    <p class="text-gray-600">
+      Paso 6: Preview — Aquí se mostrará el catálogo generado por IA para la tienda
+      <code class="text-primary-600">{storeId}</code>.
+    </p>
+    <p class="mt-4 text-sm text-gray-400">
+      Island <code>CatalogPreview.tsx</code> pendiente de implementación.
+    </p>
+  </div>
+</OnboardingLayout>

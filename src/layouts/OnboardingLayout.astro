@@ -1,0 +1,67 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  step: number;
+  title: string;
+}
+
+const { step, title } = Astro.props;
+
+const totalSteps = 6;
+const steps = [
+  'Inicio',
+  'Registro',
+  'Configuración',
+  'Productos',
+  'Procesando',
+  'Preview',
+];
+---
+
+<BaseLayout title={`${title} — MiTienda`} noindex={true}>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Progress bar -->
+    <nav class="bg-white border-b border-gray-200" aria-label="Progreso del onboarding">
+      <div class="mx-auto max-w-3xl px-4 py-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-gray-600">
+            Paso {step} de {totalSteps}
+          </span>
+          <span class="text-sm text-gray-500">{steps[step - 1]}</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={totalSteps}>
+          <div
+            class="bg-primary-600 h-2 rounded-full transition-all duration-500 ease-out"
+            style={`width: ${(step / totalSteps) * 100}%`}
+          >
+          </div>
+        </div>
+        <!-- Step indicators -->
+        <div class="flex justify-between mt-2">
+          {steps.map((label, i) => (
+            <div class="flex flex-col items-center">
+              <div
+                class:list={[
+                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium',
+                  i + 1 < step && 'bg-primary-600 text-white',
+                  i + 1 === step && 'bg-primary-600 text-white ring-2 ring-primary-200',
+                  i + 1 > step && 'bg-gray-200 text-gray-500',
+                ]}
+              >
+                {i + 1}
+              </div>
+              <span class="text-xs text-gray-500 mt-1 hidden sm:block">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </nav>
+
+    <!-- Page content -->
+    <main class="mx-auto max-w-3xl px-4 py-8">
+      <h1 class="text-2xl font-bold text-gray-900 mb-6">{title}</h1>
+      <slot />
+    </main>
+  </div>
+</BaseLayout>
