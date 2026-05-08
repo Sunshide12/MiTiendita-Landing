@@ -1,5 +1,4 @@
-import { createServerClient as createSupabaseServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient as createSupabaseServerClient, createBrowserClient as createSupabaseBrowserClient } from '@supabase/ssr';
 import type { AstroCookies } from 'astro';
 
 /**
@@ -12,19 +11,14 @@ export function createServerClient(cookies: AstroCookies) {
     import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll() {
-          // AstroCookies doesn't expose a getAll() method.
-          // Return empty array — @supabase/ssr handles cookie
-          // lifecycle via setAll on auth interactions.
-          return [] as { name: string; value: string }[];
+        get(key: string) {
+          return cookies.get(key)?.value;
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookies.set(name, value, {
-              path: '/',
-              ...options,
-            });
-          });
+        set(key: string, value: string, options: any) {
+          cookies.set(key, value, { path: '/', ...options });
+        },
+        remove(key: string, options: any) {
+          cookies.delete(key, { path: '/', ...options });
         },
       },
     }
@@ -33,10 +27,10 @@ export function createServerClient(cookies: AstroCookies) {
 
 /**
  * Creates a Supabase client for the browser (client-side islands).
- * Does NOT use cookies — relies on localStorage for the session.
+ * Uses cookies to sync the session with the server.
  */
 export function createBrowserClient() {
-  return createClient(
+  return createSupabaseBrowserClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.PUBLIC_SUPABASE_ANON_KEY
   );

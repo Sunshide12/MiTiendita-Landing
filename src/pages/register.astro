@@ -1,17 +1,17 @@
 ---
 export const prerender = false;
 
-import OnboardingLayout from '@/layouts/OnboardingLayout.astro';
-import RegisterForm from '@/components/auth/RegisterForm';
+import OnboardingLayout from "@/layouts/OnboardingLayout.astro";
+import RegisterForm from "@/components/auth/RegisterForm";
 ---
 
 <OnboardingLayout step={2} title="Crea tu cuenta">
-  <div class="mx-auto max-w-md rounded-xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
+  <div
+    class="mx-auto max-w-md rounded-xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm"
+  >
     <div class="mb-6 text-center">
       <h2 class="text-xl font-semibold text-gray-900">Sign up</h2>
-      <p class="mt-2 text-sm text-gray-600">
-        Create an account to get started
-      </p>
+      <p class="mt-2 text-sm text-gray-600">Create an account to get started</p>
     </div>
     <RegisterForm client:load />
   </div>

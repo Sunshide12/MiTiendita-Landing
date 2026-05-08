@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { createBrowserClient } from '@/lib/supabase';
 
 export default function RegisterForm() {
   const [formData, setFormData] = useState({
@@ -12,6 +13,10 @@ export default function RegisterForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverMessage, setServerMessage] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+
+  const supabase = createBrowserClient();
 
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,9 +56,21 @@ export default function RegisterForm() {
         return newErrors;
       });
     }
+    if (serverMessage) setServerMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    setServerMessage(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+    });
+    if (error) setServerMessage({ type: 'error', text: error.message });
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -75,13 +92,24 @@ export default function RegisterForm() {
       return;
     }
 
-    console.log("Form data ready for submission:", {
-      username: formData.username,
+    setLoading(true);
+    setServerMessage(null);
+
+    const { error } = await supabase.auth.signUp({
       email: formData.email,
-      password: formData.password
+      password: formData.password,
+      options: {
+        data: { username: formData.username },
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`
+      },
     });
 
-    // TODO: Connect API logic here
+    if (error) {
+      setServerMessage({ type: 'error', text: error.message });
+    } else {
+      setServerMessage({ type: 'success', text: 'Success! Please check your email to confirm your account.' });
+    }
+    setLoading(false);
   };
 
   const passwordStrength = calculatePasswordStrength(formData.password);
@@ -89,10 +117,18 @@ export default function RegisterForm() {
 
   return (
     <div className="w-full">
+      {serverMessage && (
+        <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${serverMessage.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          {serverMessage.type === 'error' ? <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />}
+          <p className="text-sm font-medium">{serverMessage.text}</p>
+        </div>
+      )}
+
       <button
         type="button"
-        onClick={() => { }}
-        className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+        onClick={handleGoogleSignUp}
+        disabled={loading}
+        className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -256,9 +292,17 @@ export default function RegisterForm() {
 
         <button
           type="submit"
-          className="w-full mt-8 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 ease-in-out"
+          disabled={loading}
+          className="w-full mt-8 py-2.5 px-4 flex items-center justify-center gap-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Create Account
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            'Create Account'
+          )}
         </button>
       </form>
     </div>
