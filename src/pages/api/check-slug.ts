@@ -1,8 +1,9 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { createServerClient } from '@/lib/supabase';
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async ({ request, cookies }) => {
   const url = new URL(request.url);
   const slug = url.searchParams.get('slug')?.toLowerCase().trim();
 
@@ -17,13 +18,10 @@ export const GET: APIRoute = async ({ request }) => {
     );
   }
 
-  // TODO: Once Supabase is configured, check against the `stores` table:
-  // const supabase = createServerClient(cookies);
-  // const { data } = await supabase.from('stores').select('id').eq('slug', slug).maybeSingle();
-  // return new Response(JSON.stringify({ available: !data }), { ... });
+  const supabase = createServerClient(cookies);
+  const { data } = await supabase.from('stores').select('id').eq('slug', slug).maybeSingle();
 
-  // For now, return available: true (no DB connected yet)
-  return new Response(JSON.stringify({ available: true }), {
+  return new Response(JSON.stringify({ available: !data }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
