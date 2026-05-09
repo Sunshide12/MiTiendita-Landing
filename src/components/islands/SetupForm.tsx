@@ -97,7 +97,7 @@ export default function SetupForm() {
       toast.success('¡Tienda creada con éxito!', { id: 'setup-toast' });
       
       setTimeout(() => {
-        window.location.href = '/upload';
+        window.location.href = `/upload?storeId=${storeData.id}`;
       }, 1000);
       
     } catch (err: any) {
@@ -184,7 +184,7 @@ export default function SetupForm() {
               </div>
             </div>
             <span className="inline-flex items-center px-4 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-              .mitienda.com
+              mitienda.com/
             </span>
           </div>
           {slugStatus === 'taken' && (

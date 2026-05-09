@@ -1,11 +1,14 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { toast, Toaster } from 'sonner';
-import { createBrowserClient } from '@/lib/supabase';
 import { triggerAIProcessing } from '@/services/ai';
-import { getPresignedUrls, uploadFilesToR2 } from '@/services/upload';
+import { uploadFilesToR2 } from '@/services/upload';
 import { UploadCloud, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 
-export default function ImageUploader() {
+interface Props {
+  storeId: string;
+}
+
+export default function ImageUploader({ storeId }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -63,7 +66,6 @@ export default function ImageUploader() {
     if (e.target.files && e.target.files.length > 0) {
       addFiles(Array.from(e.target.files));
     }
-    // Reset input so the same file can be selected again if removed
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -77,43 +79,18 @@ export default function ImageUploader() {
     toast.loading('Subiendo imágenes...', { id: 'upload-toast' });
 
     try {
-      const supabase = createBrowserClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) throw new Error('No hay sesión activa.');
-
-      // 1. Get the store for the current user to get the store_id
-      const { data: store, error: storeError } = await supabase
-        .from('stores')
-        .select('id')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (storeError || !store) throw new Error('No se encontró tu tienda configurada.');
-
-      // 2. Prepare file metadata
-      const fileMetadata = files.map(f => ({
-        filename: f.name,
-        contentType: f.type
-      }));
-
-      // 3. Get presigned URLs
-      const urls = await getPresignedUrls(store.id, fileMetadata);
-
-      // 4. Upload to R2
-      const r2Paths = await uploadFilesToR2(files, urls);
+      // 1. Upload files to R2 via Edge Function proxy
+      const r2Paths = await uploadFilesToR2(storeId, files);
 
       toast.loading('¡Subida completada! Iniciando IA...', { id: 'upload-toast' });
 
-      // 5. Trigger AI pipeline from the separated service
-      await triggerAIProcessing(store.id, r2Paths);
+      // 2. Trigger AI pipeline
+      await triggerAIProcessing(storeId, r2Paths);
 
       toast.success('Iniciando procesamiento mágico...', { id: 'upload-toast' });
 
       setTimeout(() => {
-        window.location.href = '/processing';
+        window.location.href = `/processing?storeId=${storeId}`;
       }, 500);
 
     } catch (err: any) {
@@ -135,8 +112,8 @@ export default function ImageUploader() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`relative flex flex-col items-center justify-center w-full p-10 mt-2 border-2 border-dashed rounded-xl cursor-pointer transition-colors duration-200 ease-in-out ${isDragging
-              ? 'border-primary-500 bg-primary-50'
-              : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400'
+            ? 'border-primary-500 bg-primary-50'
+            : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400'
             }`}
         >
           <input

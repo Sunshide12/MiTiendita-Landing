@@ -3,10 +3,13 @@ export const prerender = false;
 
 import OnboardingLayout from '@/layouts/OnboardingLayout.astro';
 import ImageUploader from '@/components/islands/ImageUploader';
+
+const storeId = Astro.url.searchParams.get('storeId');
+if (!storeId) return Astro.redirect('/setup');
 ---
 
 <OnboardingLayout step={4} title="Sube tus productos">
   <div class="rounded-xl border border-gray-200 bg-white p-8 shadow-sm max-w-2xl mx-auto mt-8">
-    <ImageUploader client:load />
+    <ImageUploader client:load storeId={storeId} />
   </div>
 </OnboardingLayout>

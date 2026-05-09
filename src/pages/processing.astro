@@ -10,22 +10,21 @@ const supabase = createServerClient(Astro.cookies);
 const { data: { user } } = await supabase.auth.getUser();
 if (!user) return Astro.redirect('/register');
 
-// 2. Retrieve the current user's storeId (most recent store)
-const { data: store, error: storeError } = await supabase
+// 2. Read storeId from URL query param (set by /upload)
+const storeId = Astro.url.searchParams.get('storeId');
+if (!storeId) return Astro.redirect('/setup');
+
+// 3. Verify the store belongs to this user and get the slug for the final redirect
+const { data: store } = await supabase
   .from('stores')
-  .select('id')
+  .select('id, slug')
+  .eq('id', storeId)
   .eq('owner_id', user.id)
-  .order('created_at', { ascending: false })
-  .limit(1)
   .single();
 
-if (storeError || !store) {
-  return Astro.redirect('/setup');
-}
-
-const storeId = store.id;
+if (!store) return Astro.redirect('/setup');
 ---
 
 <OnboardingLayout step={5} title="Generando tu catálogo">
-  <AIProcessingStatus client:load storeId={storeId} />
+  <AIProcessingStatus client:load storeId={store.id} storeSlug={store.slug} />
 </OnboardingLayout>

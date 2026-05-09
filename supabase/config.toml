@@ -422,3 +422,13 @@ entrypoint = "./functions/generate-r2-presigned-url/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/process-product-images/index.ts"
+
+[functions.provision-subdomain]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/provision-subdomain/index.ts"
+
+[functions.upload-to-r2]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/upload-to-r2/index.ts"
