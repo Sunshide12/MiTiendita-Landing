@@ -38,21 +38,21 @@ function buildModelList(clients: ReturnType<typeof buildClients>) {
   ]
 }
 
-const PROMPT = `Eres un experto en e-commerce y copywriting. Analiza la imagen de este producto y devuelve ÚNICAMENTE un JSON válido con esta estructura exacta (sin texto adicional, sin markdown, sin comillas extras):
+const PROMPT = `You are an e-commerce and copywriting expert. Analyze this product image and return ONLY a valid JSON object with the exact structure below (no markdown, no extra text):
 
 {
-  "nombre": "Nombre comercial del producto",
-  "marca": "Marca FABRICANTE del producto (ej: Apple, Samsung, Sony). NO confundir con el nombre del vendedor o tienda",
-  "modelo": "Modelo o versión específica",
-  "precio": null,
-  "descripcion": "Frase comercial corta y atractiva de máximo 2 líneas. NO copies el texto de la imagen. Crea una descripción que destaque el beneficio principal y genere deseo de compra."
+  "name": "Commercial product name",
+  "brand": "MANUFACTURER brand (e.g., Apple, Nike). Do NOT confuse with the seller/store name",
+  "model": "Specific model or version",
+  "price": null,
+  "description": "Short, persuasive marketing copy (max 2 lines / 150 chars). Do NOT just copy text from the image. Highlight the main benefit to drive sales."
 }
 
-REGLAS IMPORTANTES:
-- "marca" = quien FABRICA el producto, no quien lo vende
-- "descripcion" = redacción propia, comercial y persuasiva, máximo 150 caracteres
-- Si no puedes determinar un dato con certeza, usa null
-- Responde SOLO con el JSON, sin explicaciones`
+RULES:
+- "brand" = the actual creator/manufacturer, not the retailer.
+- "description" = original, compelling copy.
+- If a value cannot be determined with certainty, use null.
+- Output JSON ONLY.`
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
