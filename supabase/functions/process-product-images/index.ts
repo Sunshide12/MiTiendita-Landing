@@ -22,28 +22,21 @@ function buildClients() {
   return { openrouter }
 }
 
-// Priority list — starts with cheapest/fastest, falls back on rate limit
+// Priority list — verified against https://openrouter.ai/api/v1/models on 2026-05-17
+// Only FREE models with image input_modalities are listed below.
 function buildModelList(clients: ReturnType<typeof buildClients>) {
   return [
-    // La familia Gemini (Los mejores en visión gratuita)
-    { client: clients.openrouter, model: 'google/gemini-2.0-flash-001:free',      name: 'Gemini 2.0 Flash (Free)' },
-    { client: clients.openrouter, model: 'google/gemini-2.0-flash-lite-001:free', name: 'Gemini 2.0 Flash Lite (Free)' },
-    { client: clients.openrouter, model: 'google/gemini-1.5-flash:free',           name: 'Gemini 1.5 Flash (Free)' },
-    { client: clients.openrouter, model: 'google/gemini-1.5-flash-8b:free',        name: 'Gemini 1.5 Flash 8B (Free)' },
-    { client: clients.openrouter, model: 'google/gemini-2.0-pro-exp-02-05:free',   name: 'Gemini 2.0 Pro Exp (Free)' },
-
-    // Modelos Llama Vision (Muy rápidos y livianos)
-    { client: clients.openrouter, model: 'meta-llama/llama-3.2-11b-vision-instruct:free', name: 'Llama 3.2 Vision 11B (Free)' },
-    { client: clients.openrouter, model: 'meta-llama/llama-3.2-90b-vision-instruct:free', name: 'Llama 3.2 Vision 90B (Free)' },
-
-    // Modelos Qwen (Excelentes para detectar texto en imágenes/OCR)
-    { client: clients.openrouter, model: 'qwen/qwen-2-vl-7b-instruct:free',        name: 'Qwen 2 VL 7B (Free)' },
+    // Opción principal: Super barato, increíble en OCR y excelente devolviendo JSON
+    { client: clients.openrouter, model: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
     
-    // Otros modelos experimentales con visión
-    { client: clients.openrouter, model: 'mistralai/pixtral-12b:free',             name: 'Pixtral 12B (Free)' },
-    { client: clients.openrouter, model: 'microsoft/phi-3-vision-128k-instruct:free', name: 'Phi-3 Vision (Free)' }
+    // Fallback: Si Gemini falla por rate-limit, Qwen es el mejor en leer texto
+    { client: clients.openrouter, model: 'qwen/qwen-2-vl-7b-instruct', name: 'Qwen 2 VL 7B' },
+    
+    // Fallback 2: Llama Vision
+    { client: clients.openrouter, model: 'meta-llama/llama-3.2-11b-vision-instruct', name: 'Llama 3.2 Vision 11B' }
   ]
 }
+
 
 const PROMPT = `You are an e-commerce and copywriting expert. Analyze this product image and return ONLY a valid JSON object with the exact structure below (no markdown, no extra text):
 
@@ -174,52 +167,86 @@ serve(async (req) => {
     jobId = job.id
     console.log(`[AI Function] Job creado: ${jobId}`)
 
-    const allResults: object[] = []
+    // Background processing function
+    const processImagesInBackground = async () => {
+      try {
+        const allResults: object[] = []
 
-    for (let i = 0; i < r2Paths.length; i++) {
-      const r2Path = r2Paths[i]
-      console.log(`[AI Function] Procesando imagen ${i + 1}/${r2Paths.length}: ${r2Path}`)
+        for (let i = 0; i < r2Paths.length; i++) {
+          const r2Path = r2Paths[i]
+          console.log(`[AI Function] Procesando imagen ${i + 1}/${r2Paths.length}: ${r2Path}`)
 
-      if (i > 0) {
-        console.log(`[AI Function] Esperando 2s para evitar rate limit global...`)
-        await new Promise(r => setTimeout(r, 2000))
-      }
+          // Execution is sequential, which is prudent enough for paid tiers
+          // No artificial delays needed anymore.
 
-      const { base64, mimeType } = await fetchImageAsBase64(r2Path)
-      const productData = await extractProductData(base64, mimeType)
-      allResults.push(productData)
+          const { base64, mimeType } = await fetchImageAsBase64(r2Path)
+          const productData = await extractProductData(base64, mimeType)
+          allResults.push(productData)
 
-      const p = productData as Record<string, unknown>
-      const { error: productError } = await supabaseAdmin
-        .from('products')
-        .insert({
-          store_id: storeId,
-          name: p.name ?? 'Unnamed product',
-          description: p.description ?? null,
-          price: p.price ?? null,
-          category: p.brand ?? null,
-          image_url: `${Deno.env.get('R2_PUBLIC_URL')}/${r2Path}`,
-          ai_generated: true,
-        })
+          const p = productData as Record<string, unknown>
 
-      if (productError) {
-        console.error(`[AI Function] Error insertando producto para ${r2Path}:`, productError)
+          // Defensively coerce price: AI may return null, "null", "", or a number string
+          const rawPrice = p.price
+          const parsedPrice = rawPrice !== null && rawPrice !== undefined && rawPrice !== 'null' && rawPrice !== ''
+            ? Number(rawPrice)
+            : null
+          const safePrice = (parsedPrice !== null && !isNaN(parsedPrice) && parsedPrice > 0) ? parsedPrice : null
+
+          const { error: productError } = await supabaseAdmin
+            .from('products')
+            .insert({
+              store_id: storeId,
+              name: p.name ?? 'Unnamed product',
+              description: p.description ?? null,
+              price: safePrice,
+              category: p.brand ?? null,
+              image_url: `${Deno.env.get('R2_PUBLIC_URL')}/${r2Path}`,
+              ai_generated: true,
+            })
+
+          if (productError) {
+            console.error(`[AI Function] Error insertando producto para ${r2Path}:`, productError)
+          }
+        }
+
+        await supabaseAdmin
+          .from('ai_jobs')
+          .update({
+            status: 'done',
+            result_json: allResults,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', jobId)
+
+        console.log(`[AI Function] ✅ Job ${jobId} completado exitosamente.`)
+      } catch (err: unknown) {
+        console.error('[AI Function] Error en background task:', err)
+        if (jobId) {
+          await supabaseAdmin
+            .from('ai_jobs')
+            .update({
+              status: 'error',
+              error_msg: err instanceof Error ? err.message : String(err),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', jobId)
+        }
       }
     }
 
-    await supabaseAdmin
-      .from('ai_jobs')
-      .update({
-        status: 'done',
-        result_json: allResults,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', jobId)
+    // Run the process in the background using EdgeRuntime.waitUntil if available
+    // @ts-ignore: EdgeRuntime is provided globally in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processImagesInBackground())
+    } else {
+      // Fallback for local development
+      processImagesInBackground().catch(console.error)
+    }
 
-    console.log(`[AI Function] ✅ Job ${jobId} completado exitosamente.`)
-
+    // Return immediately to the client so frontend doesn't hang
     return new Response(
-      JSON.stringify({ jobId, status: 'done', message: 'Procesamiento completado.' }),
+      JSON.stringify({ jobId, status: 'processing', message: 'Procesamiento en background iniciado.' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
 

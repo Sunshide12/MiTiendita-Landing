@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { createServerClient } from "@/lib/supabase";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import ProductCatalogIsland from "@/components/islands/ImageEditorModal";
 
 const { store_slug } = Astro.params;
 
@@ -21,82 +22,130 @@ const { data: store } = await supabase
 if (!store) return new Response(null, { status: 404 });
 
 // Fetch products for this store
-const { data: products } = await supabase
+const { data: rawProducts } = await supabase
   .from("products")
   .select("id, name, description, price, category, image_url")
   .eq("store_id", store.id)
   .order("created_at", { ascending: true });
 
 const r2PublicUrl = import.meta.env.PUBLIC_R2_PUBLIC_URL ?? "";
+
+// Resolve absolute image URLs once + map category→brand for the island
+const products = (rawProducts ?? []).map((p) => ({
+  id: String(p.id),
+  name: String(p.name ?? "Product"),
+  brand: (p.category as string | null),
+  description: p.description as string | null,
+  price: p.price as number | null,
+  image_url: p.image_url
+    ? p.image_url.startsWith("http")
+      ? p.image_url
+      : `${r2PublicUrl}/${p.image_url}`
+    : "",
+}));
 ---
 
-<BaseLayout title={`${store.name} — MiTienda`} noindex={false}>
-  <!-- Header -->
-  <header class="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-    <div class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-      <h1 class="text-xl font-bold text-gray-900 tracking-tight">{store.name}</h1>
-      <span class="text-xs text-gray-400 font-mono">mitienda.com/{store.slug}</span>
+<BaseLayout
+  title={`${store.name} — MiTienda`}
+  description={`Descubre el catálogo de ${store.name} en MiTienda.`}
+  noindex={false}
+>
+  <!-- ─── Sticky Header ──────────────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {store.name.charAt(0).toUpperCase()}
+        </div>
+        <h1 class="text-[15px] font-bold text-gray-900 tracking-tight">{store.name}</h1>
+      </div>
+      <span class="hidden sm:block text-xs text-gray-400 font-mono bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md">
+        mitienda.com/{store.slug}
+      </span>
     </div>
   </header>
 
-  <main class="mx-auto max-w-6xl px-4 py-10">
+  <!-- ─── Main ──────────────────────────────────────────────────────────────── -->
+  <main class="mx-auto max-w-6xl px-4 sm:px-6 py-10">
 
-    {products && products.length > 0 ? (
+    {products.length > 0 ? (
       <>
-        <p class="text-sm text-gray-500 mb-6">{products.length} product{products.length !== 1 ? 's' : ''} in your catalog</p>
+        <!-- Section heading -->
+        <div class="flex items-baseline justify-between mb-7">
+          <h2 class="text-xl font-semibold text-gray-900">Catalog</h2>
+          <span class="text-sm text-gray-400">
+            {products.length} product{products.length !== 1 ? "s" : ""}
+          </span>
+        </div>
 
-        <!-- Product Grid -->
-        <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => {
-            const imgSrc = product.image_url
-              ? (product.image_url.startsWith('http') ? product.image_url : `${r2PublicUrl}/${product.image_url}`)
-              : null;
-
-            return (
-              <li class="group bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
-                <!-- Product Image -->
-                <div class="relative aspect-square bg-gray-50 overflow-hidden">
-                  {imgSrc ? (
-                    <img
-                      src={imgSrc}
-                      alt={product.name}
-                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div class="w-full h-full flex items-center justify-center text-gray-300">
-                      <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  )}
-                  <!-- AI Badge -->
-                  <span class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-xs font-medium text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 shadow-sm">
-                    ✦ AI
-                  </span>
-                </div>
-
-                <!-- Product Info -->
-                <div class="p-4 space-y-1.5">
-                  {product.category && (
-                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">{product.category}</p>
-                  )}
-                  <h2 class="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">{product.name}</h2>
-                  {product.description && (
-                    <p class="text-xs text-gray-500 leading-relaxed line-clamp-2">{product.description}</p>
-                  )}
-                  <div class="pt-2 flex items-center justify-between">
-                    <span class="text-base font-bold text-gray-900">
-                      {product.price != null
-                        ? new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(Number(product.price))
-                        : <span class="text-sm font-normal text-gray-400">Price TBD</span>
-                      }
-                    </span>
+        <!-- Product Grid: 1 col → 2 col (sm) → 3 col (lg) -->
+        <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {products.map((product) => (
+            <li
+              id={`card-${product.id}`}
+              class="group relative bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            >
+              <!-- Image -->
+              <div class="relative aspect-square bg-gray-50 overflow-hidden">
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <div class="w-full h-full flex items-center justify-center text-gray-200">
+                    <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
                   </div>
+                )}
+                <!-- AI badge -->
+                <span class="absolute top-2.5 left-2.5 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100 shadow-sm">
+                  ✦ AI
+                </span>
+              </div>
+
+              <!-- Card body -->
+              <div class="relative z-10 p-4">
+                {product.brand && (
+                  <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
+                    {product.brand}
+                  </p>
+                )}
+                <h3 class="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-1">
+                  {product.name}
+                </h3>
+                {product.description && (
+                  <p class="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">
+                    {product.description}
+                  </p>
+                )}
+
+                <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
+                  <!-- Price -->
+                  <span class="text-base font-bold text-gray-900">
+                    {product.price != null
+                      ? new Intl.NumberFormat("es-ES", {
+                          style: "currency",
+                          currency: "USD",
+                        }).format(Number(product.price))
+                      : <span class="text-sm font-normal text-gray-400">Price TBD</span>}
+                  </span>
+
+                  <!--
+                    Edit button slot.
+                    After client hydration the React island queries each
+                    [data-editor-slot] and moves its rendered <button> into it.
+                  -->
+                  <div data-editor-slot={product.id} />
                 </div>
-              </li>
-            );
-          })}
+              </div>
+            </li>
+          ))}
         </ul>
       </>
     ) : (
@@ -104,15 +153,29 @@ const r2PublicUrl = import.meta.env.PUBLIC_R2_PUBLIC_URL ?? "";
       <div class="flex flex-col items-center justify-center py-32 text-center gap-4">
         <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
           <svg class="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
           </svg>
         </div>
         <p class="text-base font-medium text-gray-700">No products yet</p>
         <p class="text-sm text-gray-400">Upload images to generate your catalog.</p>
-        <a href="/upload" class="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
+        <a
+          href="/upload"
+          class="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors"
+        >
           Upload products →
         </a>
       </div>
     )}
   </main>
+
+  <!--
+    React Island: Image Editor Modal
+    client:load → hydrated immediately on page load.
+    The island renders invisible <button> elements and, after mount,
+    teleports each one into its matching [data-editor-slot] div.
+  -->
+  {products.length > 0 && (
+    <ProductCatalogIsland products={products} client:load />
+  )}
 </BaseLayout>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { AlertCircle, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 import { createBrowserClient } from '@/lib/supabase';
 
@@ -21,6 +21,8 @@ const STEPS = [
   { label: 'Finalizing catalog...',      pct: 95 },
 ];
 
+const POLL_INTERVAL_MS = 3000; // Poll every 3 seconds as a Realtime fallback
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
@@ -30,7 +32,34 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
   const [progress, setProgress]     = useState(5);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // ── Advance progress step every 3 s while loading ─────────────────────────
+  // Use a ref to track if we've already initiated redirect to avoid double-fire
+  const hasRedirected = useRef(false);
+
+  // ── Stable redirect function using ref to avoid stale closures ────────────
+  const activateAndRedirect = useCallback(async () => {
+    if (hasRedirected.current) return;
+    hasRedirected.current = true;
+
+    console.log('[AIProcessingStatus] Activating store and redirecting...');
+
+    try {
+      const supabase = createBrowserClient();
+      await supabase
+        .from('stores')
+        .update({ is_active: true })
+        .eq('id', storeId);
+      console.log('[AIProcessingStatus] Store activated ✅');
+    } catch (err) {
+      console.warn('[AIProcessingStatus] Could not activate store:', err);
+    }
+
+    // Short delay to show the "Catalog ready!" UI before redirect
+    setTimeout(() => {
+      window.location.href = `/${storeSlug}`;
+    }, 1200);
+  }, [storeId, storeSlug]);
+
+  // ── Advance progress step every 3s while loading ──────────────────────────
   useEffect(() => {
     if (status !== 'pending' && status !== 'processing') return;
 
@@ -45,48 +74,85 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
     return () => clearInterval(interval);
   }, [status]);
 
-  // ── Supabase Realtime subscription ────────────────────────────────────────
+  // ── POLLING + REALTIME: bulletproof status detection ──────────────────────
+  // Uses both Realtime subscription AND periodic polling as fallback.
+  // This eliminates the race condition where the job finishes before
+  // the Realtime subscription is established.
   useEffect(() => {
     const supabase = createBrowserClient();
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let stopped = false;
 
+    const handleJobStatus = (jobStatus: JobStatus, jobErrorMsg?: string | null) => {
+      if (stopped) return;
+      console.log('[AIProcessingStatus] Status received:', jobStatus);
+
+      if (jobStatus === 'done') {
+        setStatus('done');
+        setProgress(100);
+        activateAndRedirect();
+      } else if (jobStatus === 'error') {
+        setStatus('error');
+        setErrorMsg(jobErrorMsg ?? 'An unknown error occurred during processing.');
+      } else if (jobStatus === 'processing') {
+        setStatus('processing');
+      }
+    };
+
+    // ── Poll function ────────────────────────────────────────────────────
+    const pollJobStatus = async () => {
+      if (stopped || hasRedirected.current) return;
+
+      try {
+        const { data } = await supabase
+          .from('ai_jobs')
+          .select('status, error_msg')
+          .eq('store_id', storeId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (data) {
+          handleJobStatus(data.status as JobStatus, data.error_msg);
+        }
+      } catch (err) {
+        console.warn('[AIProcessingStatus] Poll error:', err);
+      }
+    };
+
+    // ── Initial poll immediately on mount ─────────────────────────────────
+    pollJobStatus();
+
+    // ── Continuous polling as fallback ────────────────────────────────────
+    pollTimer = setInterval(pollJobStatus, POLL_INTERVAL_MS);
+
+    // ── Realtime subscription (fires faster than polling if available) ────
     const channel = supabase
       .channel(`ai_job_${storeId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*', // Listen to INSERT and UPDATE
           schema: 'public',
           table: 'ai_jobs',
           filter: `store_id=eq.${storeId}`,
         },
         (payload) => {
           const job = payload.new as { status: JobStatus; error_msg?: string };
-          console.log('[AIProcessingStatus] Realtime update:', job);
-          setStatus(job.status);
-
-          if (job.status === 'done') {
-            setProgress(100);
-            // Activate the store, then redirect to the path-based store page
-            createBrowserClient()
-              .functions.invoke('provision-subdomain', { body: { storeId } })
-              .finally(() => {
-                setTimeout(() => {
-                  window.location.href = `/${storeSlug}`;
-                }, 900);
-              });
-          }
-
-          if (job.status === 'error') {
-            setErrorMsg(job.error_msg ?? 'An unknown error occurred during processing.');
-          }
+          console.log('[AIProcessingStatus] Realtime event:', payload.eventType, job.status);
+          handleJobStatus(job.status, job.error_msg);
         }
       )
       .subscribe((s) => {
         console.log('[AIProcessingStatus] Realtime subscription:', s);
       });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [storeId, storeSlug]);
+    return () => {
+      stopped = true;
+      if (pollTimer) clearInterval(pollTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [storeId, storeSlug, activateAndRedirect]);
 
   // ── Retry handler ─────────────────────────────────────────────────────────
   const handleRetry = async () => {
@@ -95,6 +161,7 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
     setStatus('pending');
     setProgress(5);
     setStepIndex(0);
+    hasRedirected.current = false;
 
     try {
       const supabase = createBrowserClient();
