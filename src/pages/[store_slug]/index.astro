@@ -28,21 +28,37 @@ const { data: rawProducts } = await supabase
   .eq("store_id", store.id)
   .order("created_at", { ascending: true });
 
-const r2PublicUrl = import.meta.env.PUBLIC_R2_PUBLIC_URL ?? "";
+const r2PublicUrl = (import.meta.env.PUBLIC_R2_PUBLIC_URL ?? "").replace(/\/$/, "");
 
 // Resolve absolute image URLs once + map category→brand for the island
-const products = (rawProducts ?? []).map((p) => ({
-  id: String(p.id),
-  name: String(p.name ?? "Product"),
-  brand: (p.category as string | null),
-  description: p.description as string | null,
-  price: p.price as number | null,
-  image_url: p.image_url
-    ? p.image_url.startsWith("http")
-      ? p.image_url
-      : `${r2PublicUrl}/${p.image_url}`
-    : "",
-}));
+// Legacy rows may have stored the old *.r2.dev URL directly.
+// We detect those, extract only the pathname, and rewrite to the new Worker URL.
+const products = (rawProducts ?? []).map((p) => {
+  let imageUrl = "";
+  if (p.image_url) {
+    if (p.image_url.includes(".r2.dev")) {
+      // Extract pathname from old R2 URL and rewrite to the new Worker base
+      const pathname = new URL(p.image_url).pathname; // e.g. /store-slug/file.jpg
+      imageUrl = `${r2PublicUrl}${pathname}`;
+    } else if (p.image_url.startsWith("http")) {
+      // Already an absolute URL on a different host — use as-is
+      imageUrl = p.image_url;
+    } else {
+      // Relative key — prepend the Worker base
+      imageUrl = `${r2PublicUrl}/${p.image_url}`;
+    }
+  }
+  return {
+    id: String(p.id),
+    name: String(p.name ?? "Product"),
+    brand: (p.category as string | null),
+    description: p.description as string | null,
+    price: p.price as number | null,
+    image_url: imageUrl,
+  };
+});
+
+console.log("DEBUG PRODUCTS:", JSON.stringify(products.map(p => ({ id: p.id, img: p.image_url })), null, 2));
 ---
 
 <BaseLayout
@@ -87,22 +103,17 @@ const products = (rawProducts ?? []).map((p) => ({
             >
               <!-- Image -->
               <div class="relative aspect-square bg-gray-50 overflow-hidden">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div class="w-full h-full flex items-center justify-center text-gray-200">
-                    <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                )}
+                <img
+                  src={product.image_url || 'https://via.placeholder.com/300'}
+                  alt={product.name}
+                  class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+                />
+                <div class="w-full h-full items-center justify-center text-gray-300 bg-gray-50 absolute inset-0" style="display:none">
+                  <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
                 <!-- AI badge -->
                 <span class="absolute top-2.5 left-2.5 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100 shadow-sm">
                   ✦ AI
