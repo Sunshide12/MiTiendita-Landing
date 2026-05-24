@@ -48,7 +48,7 @@
 https://mitienda.com
         │
         ▼
-[/]  Landing hero + CTA
+[/]  Landing hero
         │
         ▼
 [/register]  Registro (Google OAuth o email/password)
@@ -60,13 +60,13 @@ https://mitienda.com
 [/upload?storeId=...]  Drag & drop de hasta 6 imágenes → proxy → R2
         │
         ▼
-[/processing?storeId=...]  Barra de progreso en tiempo real (Supabase Realtime)
+[/processing?storeId=...]  Procesamiento con IA y Supabase Realtime
         │
         ▼
-[/preview/:storeId]  Catálogo generado con editor de imagen inline
+[/preview/:storeId]  Catálogo generado automaticamente con IA
         │
         ▼
-[slug.mitienda.com]  Storefront público (cuando is_active = true)
+[slug.mitienda.com]  Storefront público
 ```
 
 ---
