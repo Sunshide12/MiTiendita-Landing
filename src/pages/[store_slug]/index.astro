@@ -24,7 +24,7 @@ if (!store) return new Response(null, { status: 404 });
 // Fetch products for this store
 const { data: rawProducts } = await supabase
   .from("products")
-  .select("id, name, description, price, category, image_url")
+  .select("id, name, description, price, category, image_url, image_crop")
   .eq("store_id", store.id)
   .order("created_at", { ascending: true });
 
@@ -55,6 +55,7 @@ const products = (rawProducts ?? []).map((p) => {
     description: p.description as string | null,
     price: p.price as number | null,
     image_url: imageUrl,
+    image_crop: (p.image_crop as { crop:{x:number,y:number}; zoom:number; rotation:number } | null) ?? null,
   };
 });
 

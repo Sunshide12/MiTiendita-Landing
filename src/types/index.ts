@@ -15,6 +15,13 @@ export interface Store {
   created_at: string;
 }
 
+export interface CropParams {
+  crop: { x: number; y: number };
+  zoom: number;
+  rotation: number;
+  pixels: { x: number; y: number; width: number; height: number };
+}
+
 export interface Product {
   id: string;
   store_id: string;
@@ -23,6 +30,7 @@ export interface Product {
   price: number | null;
   category: string | null;
   image_url: string | null;
+  image_crop: CropParams | null;
   ai_generated: boolean;
   created_at: string;
 }

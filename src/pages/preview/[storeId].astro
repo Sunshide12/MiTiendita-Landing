@@ -24,10 +24,10 @@ const { data: store } = await supabase
 
 if (!store) return Astro.redirect('/setup');
 
-// 3. Fetch products for this store
+// 3. Fetch products for this store (includes image_crop for non-destructive editing)
 const { data: rawProducts } = await supabase
   .from('products')
-  .select('id, name, description, price, category, image_url')
+  .select('id, name, description, price, category, image_url, image_crop')
   .eq('store_id', store.id)
   .order('created_at', { ascending: true });
 
@@ -40,6 +40,8 @@ const { data: storeCategories } = await supabase
 
 // 5. Resolve image URLs
 const r2PublicUrl = (import.meta.env.PUBLIC_R2_PUBLIC_URL ?? '').replace(/\/$/, '');
+
+type CropParams = { crop: { x: number; y: number }; zoom: number; rotation: number };
 
 const products = (rawProducts ?? []).map((p) => {
   let imageUrl = '';
@@ -60,6 +62,7 @@ const products = (rawProducts ?? []).map((p) => {
     description: p.description as string | null,
     price: p.price as number | null,
     image_url: imageUrl,
+    image_crop: (p.image_crop as CropParams | null) ?? null,
   };
 });
 
@@ -76,7 +79,7 @@ const categories = productCategories.length > 0
 <BaseLayout title={`${store.name} — Preview`} noindex={true}>
   <StorePreview
     client:load
-    store={{ name: store.name, slug: store.slug }}
+    store={{ id: store.id, name: store.name, slug: store.slug }}
     products={products}
     categories={categories}
   />

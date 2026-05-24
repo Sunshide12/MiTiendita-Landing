@@ -1,7 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Palette, Sun, Moon } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ShoppingCart, Palette, Sun, Moon, Pencil, X, RotateCw, ZoomIn, ZoomOut, Loader2, RefreshCw } from 'lucide-react';
+import Cropper from 'react-easy-crop';
+import type { Area, Point } from 'react-easy-crop';
+import { createBrowserClient } from '@/lib/supabase';
+import CroppedImage from './CroppedImage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface CropParams {
+  crop: { x: number; y: number };
+  zoom: number;
+  rotation: number;
+  pixels: { x: number; y: number; width: number; height: number };
+}
 
 interface Product {
   id: string;
@@ -10,9 +21,11 @@ interface Product {
   description: string | null;
   price: number | null;
   image_url: string;
+  image_crop: CropParams | null;
 }
 
 interface StoreInfo {
+  id: string;
   name: string;
   slug: string;
 }
@@ -47,35 +60,35 @@ const THEMES: ThemeDef[] = [
     name: 'Midnight Gold',
     accent: '#D4A843',
     accentHover: '#c49a38',
-    dark:  { bg: '#121212', cardBg: '#1e1e1e', text: '#ffffff', textSecondary: '#a1a1a1', headerBg: '#0a0a0a', border: '#2a2a2a' },
+    dark: { bg: '#121212', cardBg: '#1e1e1e', text: '#ffffff', textSecondary: '#a1a1a1', headerBg: '#0a0a0a', border: '#2a2a2a' },
     light: { bg: '#fafaf9', cardBg: '#ffffff', text: '#1c1917', textSecondary: '#78716c', headerBg: '#ffffff', border: '#e7e5e4' },
   },
   {
     name: 'Ocean Trust',
     accent: '#06b6d4',
     accentHover: '#0891b2',
-    dark:  { bg: '#0f172a', cardBg: '#1e293b', text: '#ffffff', textSecondary: '#94a3b8', headerBg: '#0b1120', border: '#334155' },
+    dark: { bg: '#0f172a', cardBg: '#1e293b', text: '#ffffff', textSecondary: '#94a3b8', headerBg: '#0b1120', border: '#334155' },
     light: { bg: '#f0f9ff', cardBg: '#ffffff', text: '#0f172a', textSecondary: '#64748b', headerBg: '#ffffff', border: '#e0f2fe' },
   },
   {
     name: 'Sunset Energy',
     accent: '#f97316',
     accentHover: '#ea580c',
-    dark:  { bg: '#1c1917', cardBg: '#292524', text: '#ffffff', textSecondary: '#a8a29e', headerBg: '#0c0a09', border: '#44403c' },
+    dark: { bg: '#1c1917', cardBg: '#292524', text: '#ffffff', textSecondary: '#a8a29e', headerBg: '#0c0a09', border: '#44403c' },
     light: { bg: '#fff7ed', cardBg: '#ffffff', text: '#1c1917', textSecondary: '#78716c', headerBg: '#ffffff', border: '#fed7aa' },
   },
   {
     name: 'Royal Amethyst',
     accent: '#a855f7',
     accentHover: '#9333ea',
-    dark:  { bg: '#18122B', cardBg: '#231c38', text: '#ffffff', textSecondary: '#a78bfa', headerBg: '#0f0a1e', border: '#3b2d5e' },
+    dark: { bg: '#18122B', cardBg: '#231c38', text: '#ffffff', textSecondary: '#a78bfa', headerBg: '#0f0a1e', border: '#3b2d5e' },
     light: { bg: '#faf5ff', cardBg: '#ffffff', text: '#18122B', textSecondary: '#7c3aed', headerBg: '#ffffff', border: '#e9d5ff' },
   },
   {
     name: 'Forest Growth',
     accent: '#22c55e',
     accentHover: '#16a34a',
-    dark:  { bg: '#14231a', cardBg: '#1a3024', text: '#ffffff', textSecondary: '#86efac', headerBg: '#0a1610', border: '#264d35' },
+    dark: { bg: '#14231a', cardBg: '#1a3024', text: '#ffffff', textSecondary: '#86efac', headerBg: '#0a1610', border: '#264d35' },
     light: { bg: '#f0fdf4', cardBg: '#ffffff', text: '#14231a', textSecondary: '#16a34a', headerBg: '#ffffff', border: '#bbf7d0' },
   },
 ];
@@ -83,21 +96,21 @@ const THEMES: ThemeDef[] = [
 // ─── Category → Image Mapping (Unsplash, free) ──────────────────────────────
 
 const CAT_IMG: Record<string, string> = {
-  moda:        'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop',
-  ropa:        'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop',
-  fashion:     'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop',
+  moda: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop',
+  ropa: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop',
+  fashion: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop',
   electronica: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop',
-  tecnologia:  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop',
-  hogar:       'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
-  casa:        'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
-  comida:      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop',
+  tecnologia: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop',
+  hogar: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
+  casa: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
+  comida: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop',
   restaurante: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop',
-  servicios:   'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
-  deporte:     'https://images.unsplash.com/photo-1461896836934-bd45ba8c28c3?w=600&h=400&fit=crop',
-  belleza:     'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&h=400&fit=crop',
-  salud:       'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=600&h=400&fit=crop',
-  juguetes:    'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=600&h=400&fit=crop',
-  mascotas:    'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=400&fit=crop',
+  servicios: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
+  deporte: 'https://images.unsplash.com/photo-1461896836934-bd45ba8c28c3?w=600&h=400&fit=crop',
+  belleza: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&h=400&fit=crop',
+  salud: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=600&h=400&fit=crop',
+  juguetes: 'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=600&h=400&fit=crop',
+  mascotas: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=400&fit=crop',
 };
 const DEFAULT_CAT_IMG = 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=600&h=400&fit=crop';
 
@@ -116,17 +129,36 @@ function formatPrice(price: number): string {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(price);
 }
 
+/** Persist crop params (or null for reset) to Supabase */
+async function saveCropToDb(productId: string, cropParams: CropParams | null): Promise<void> {
+  const supabase = createBrowserClient();
+  const { error } = await supabase
+    .from('products')
+    .update({ image_crop: cropParams, updated_at: new Date().toISOString() })
+    .eq('id', productId);
+  if (error) throw error;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function StorePreview({ store, products, categories }: Props) {
+export default function StorePreview({ store, products: initialProducts, categories }: Props) {
+  const [productList, setProductList] = useState<Product[]>(initialProducts);
   const [themeIdx, setThemeIdx] = useState(0);
-  const [isDark, setIsDark]     = useState(true);
-  const [showModal, setShowModal]         = useState(true);
-  const [showPicker, setShowPicker]       = useState(false);
+  const [isDark, setIsDark] = useState(true);
+  const [showModal, setShowModal] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
+  const handleCropSaved = (productId: string, cropParams: CropParams | null) => {
+    setProductList(prev => prev.map(p =>
+      p.id === productId ? { ...p, image_crop: cropParams } : p
+    ));
+    setEditingProduct(null);
+  };
+
   const theme = THEMES[themeIdx];
-  const m     = isDark ? theme.dark : theme.light;
+  const m = isDark ? theme.dark : theme.light;
 
   // Close picker on outside click
   useEffect(() => {
@@ -196,7 +228,7 @@ export default function StorePreview({ store, products, categories }: Props) {
 
             <div style={{ display: 'flex', gap: 12 }}>
               <button
-                onClick={() => {}}
+                onClick={() => { }}
                 style={{
                   flex: 1, padding: 12, borderRadius: 10,
                   backgroundColor: theme.accent, color: '#fff',
@@ -264,7 +296,7 @@ export default function StorePreview({ store, products, categories }: Props) {
 
                   <Label text="Modo" color={m.textSecondary} />
                   <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: `1px solid ${m.border}` }}>
-                    <ToggleBtn active={isDark}  accent={theme.accent} secondary={m.textSecondary} onClick={() => setIsDark(true)}>
+                    <ToggleBtn active={isDark} accent={theme.accent} secondary={m.textSecondary} onClick={() => setIsDark(true)}>
                       <Moon size={14} /> Dark
                     </ToggleBtn>
                     <ToggleBtn active={!isDark} accent={theme.accent} secondary={m.textSecondary} onClick={() => setIsDark(false)}>
@@ -312,17 +344,17 @@ export default function StorePreview({ store, products, categories }: Props) {
           </a>
         </div>
 
-        {/* Mini gallery (first 4 product images) */}
-        {products.length > 0 && (
+        {/* Mini gallery */}
+        {productList.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 44 }}>
-            {products.slice(0, 4).map((p, i) => (
+            {productList.slice(0, 4).map((p, i) => (
               <div key={p.id} style={{
                 width: 110, height: 74, borderRadius: 8, overflow: 'hidden',
                 opacity: .75, transform: `rotate(${(i - 1.5) * 3}deg)`,
                 border: `2px solid ${m.border}`,
               }}>
                 {p.image_url && (
-                  <img src={p.image_url} alt="" loading="lazy"
+                  <CroppedImage src={p.image_url} cropParams={p.image_crop}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 )}
               </div>
@@ -371,12 +403,25 @@ export default function StorePreview({ store, products, categories }: Props) {
             gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
             gap: 20,
           }}>
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} accent={theme.accent} accentHover={theme.accentHover} mode={m} isDark={isDark} />
+            {productList.map((p) => (
+              <ProductCard key={p.id} product={p}
+                accent={theme.accent} accentHover={theme.accentHover}
+                mode={m} isDark={isDark}
+                onEditImage={() => setEditingProduct(p)}
+              />
             ))}
           </div>
         </section>
       </main>
+
+      {/* Image Editor Modal */}
+      {editingProduct && (
+        <ImageEditorModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSaved={handleCropSaved}
+        />
+      )}
 
       {/* ─── Publish Button (sticky bottom) ──────────────────────────────── */}
       <div style={{
@@ -388,7 +433,7 @@ export default function StorePreview({ store, products, categories }: Props) {
         display: 'flex', justifyContent: 'center',
       }}>
         <button
-          onClick={() => {}}
+          onClick={() => { }}
           style={{
             padding: '12px 48px', borderRadius: 10,
             backgroundColor: theme.accent, color: '#fff',
@@ -462,58 +507,150 @@ function ToggleBtn({ children, active, accent, secondary, onClick }: {
   );
 }
 
-function ProductCard({ product, accent, accentHover, mode, isDark }: {
+function ProductCard({ product, accent, accentHover, mode, isDark, onEditImage }: {
   product: Product; accent: string; accentHover: string; mode: ModeColors; isDark: boolean;
+  onEditImage: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{
-        backgroundColor: mode.cardBg,
-        borderRadius: 14, overflow: 'hidden',
-        border: `1px solid ${mode.border}`,
-        transition: 'all .3s', cursor: 'pointer',
+        position: 'relative', backgroundColor: mode.cardBg, borderRadius: 14, overflow: 'hidden',
+        border: `1px solid ${mode.border}`, transition: 'all .3s',
         transform: hovered ? 'translateY(-4px)' : 'none',
         boxShadow: hovered ? `0 14px 34px rgba(0,0,0,${isDark ? '.4' : '.1'})` : 'none',
       }}
     >
-      {/* Image */}
-      <div style={{ aspectRatio: '1', overflow: 'hidden', backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5' }}>
+      <div style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5' }}>
         {product.image_url ? (
-          <img src={product.image_url} alt={product.name} loading="lazy"
-            style={{
-              width: '100%', height: '100%', objectFit: 'cover',
-              transition: 'transform .5s',
-              transform: hovered ? 'scale(1.05)' : 'none',
-            }}
+          <CroppedImage src={product.image_url} cropParams={product.image_crop} alt={product.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .5s', transform: hovered ? 'scale(1.05)' : 'none' }}
           />
         ) : (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: mode.textSecondary }}>
             <ShoppingCart size={36} />
           </div>
         )}
+        <button onClick={(e) => { e.stopPropagation(); onEditImage(); }} title="Editar imagen"
+          style={{
+            position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 8,
+            backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: '#fff',
+          }}>
+          <Pencil size={14} />
+        </button>
       </div>
-
-      {/* Body */}
       <div style={{ padding: 16 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{product.name}</h3>
         <p style={{ fontSize: 15, fontWeight: 700, color: accent, marginBottom: 14 }}>
-          {product.price != null ? formatPrice(product.price) : <span style={{ color: mode.textSecondary, fontWeight: 400, fontSize: 13 }}>Precio por definir</span>}
+          {product.price != null ? formatPrice(product.price)
+            : <span style={{ color: mode.textSecondary, fontWeight: 400, fontSize: 13 }}>Precio por definir</span>}
         </p>
-        <button style={{
-          width: '100%', padding: '10px 0', borderRadius: 8,
-          backgroundColor: accent, color: '#fff',
-          fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer',
-          transition: 'background .2s',
-        }}
+        <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, backgroundColor: accent, color: '#fff', fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer' }}
           onMouseEnter={e => { e.currentTarget.style.backgroundColor = accentHover; }}
-          onMouseLeave={e => { e.currentTarget.style.backgroundColor = accent; }}
-        >
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = accent; }}>
           Añadir al carrito
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ImageEditorModal({ product, onClose, onSaved }: {
+  product: Product;
+  onClose: () => void;
+  onSaved: (productId: string, cropParams: CropParams | null) => void;
+}) {
+  const [crop, setCrop] = useState(product.image_crop?.crop ?? { x: 0, y: 0 });
+  const [zoom, setZoom] = useState(product.image_crop?.zoom ?? 1);
+  const [rotation, setRotation] = useState(product.image_crop?.rotation ?? 0);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(
+    product.image_crop?.pixels ? (product.image_crop.pixels as unknown as Area) : null
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const onCropComplete = useCallback((_: Area, pixels: Area) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  const save = async (params: CropParams | null) => {
+    setIsSaving(true); setError(null);
+    try {
+      // Include the exact pixel crop area so CroppedImage can render it correctly
+      const fullParams: CropParams | null = params && croppedAreaPixels
+        ? { ...params, pixels: croppedAreaPixels }
+        : params;
+      await saveCropToDb(product.id, fullParams);
+      onSaved(product.id, fullParams);
+    } catch (e: any) { setError(e.message ?? 'Error.'); setIsSaving(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}>
+      <div style={{ backgroundColor: '#1a1a1a', borderRadius: 16, overflow: 'hidden', width: '90%', maxWidth: 520, boxShadow: '0 25px 60px rgba(0,0,0,0.6)', animation: 'spFadeIn .3s ease-out' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid #333' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
+            Editar imagen — <span style={{ color: '#aaa', fontWeight: 400 }}>{product.name}</span>
+          </span>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', backgroundColor: 'rgba(255,255,255,0.1)', color: '#aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div style={{ position: 'relative', height: 320, backgroundColor: '#000' }}>
+          {product.image_url && (
+            <Cropper
+              image={product.image_url}
+              crop={crop} zoom={zoom} rotation={rotation} aspect={1}
+              onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete}
+              style={{
+                containerStyle: { background: '#000' },
+                cropAreaStyle: { border: '2px solid rgba(255,255,255,0.7)', boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)' },
+              }}
+            />
+          )}
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ZoomOut size={15} style={{ color: '#888', flexShrink: 0 }} />
+            <input type="range" min={1} max={3} step={0.05} value={zoom}
+              onChange={e => setZoom(Number(e.target.value))}
+              style={{ flex: 1, accentColor: '#D4A843' }} />
+            <ZoomIn size={15} style={{ color: '#888', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: '#888', fontFamily: 'monospace', width: 36, textAlign: 'right' }}>{zoom.toFixed(1)}x</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setRotation(r => (r + 90) % 360)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #444', backgroundColor: 'transparent', color: '#ccc', fontSize: 13, cursor: 'pointer' }}>
+              <RotateCw size={14} /> {rotation}deg
+            </button>
+            <button onClick={() => save(null)} disabled={isSaving || !product.image_crop}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #444', backgroundColor: 'transparent', color: product.image_crop ? '#f87171' : '#555', fontSize: 13, cursor: product.image_crop ? 'pointer' : 'not-allowed' }}>
+              <RefreshCw size={14} /> Resetear
+            </button>
+            <button onClick={onClose}
+              style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #444', backgroundColor: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>
+              Cancelar
+            </button>
+            <button onClick={() => save({ crop, zoom, rotation })} disabled={isSaving}
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', borderRadius: 8, border: 'none', backgroundColor: '#fff', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}>
+              {isSaving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</> : 'Guardar recorte'}
+            </button>
+          </div>
+          {error && <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{error}</p>}
+        </div>
       </div>
     </div>
   );
