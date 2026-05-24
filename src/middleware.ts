@@ -7,7 +7,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { url, cookies, redirect } = context;
   const pathname = url.pathname;
 
-  // Check if the current route is one of the protected routes
+  // ── Intercept OAuth codes that land on the wrong page ──────────────
+  // When Supabase falls back to site_url (e.g. ngrok not in allowlist),
+  // the ?code= param arrives on "/" instead of "/api/auth/callback".
+  // Forward it to the proper callback endpoint.
+  const code = url.searchParams.get('code');
+  if (code && pathname !== '/api/auth/callback') {
+    const callbackUrl = new URL('/api/auth/callback', url.origin);
+    callbackUrl.searchParams.set('code', code);
+    return redirect(callbackUrl.toString(), 302);
+  }
+
+  // ── Protect authenticated routes ───────────────────────────────────
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
   if (isProtectedRoute) {

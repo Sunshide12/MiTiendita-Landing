@@ -7,8 +7,8 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://mitienda.com',
-  output: 'static',
+  site: process.env.SITE_URL || 'https://mitienda.com',
+  output: 'server',
   adapter: cloudflare(),
 
   integrations: [
