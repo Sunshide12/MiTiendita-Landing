@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏪 MiTienda — Landing & Onboarding
+# MiTienda — Landing & Onboarding
 
 **De la primera visita al catálogo generado por IA, en menos de 5 minutos.**
 
