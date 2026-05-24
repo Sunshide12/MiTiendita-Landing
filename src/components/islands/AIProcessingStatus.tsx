@@ -36,28 +36,17 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
   const hasRedirected = useRef(false);
 
   // ── Stable redirect function using ref to avoid stale closures ────────────
-  const activateAndRedirect = useCallback(async () => {
+  const redirectToPreview = useCallback(() => {
     if (hasRedirected.current) return;
     hasRedirected.current = true;
 
-    console.log('[AIProcessingStatus] Activating store and redirecting...');
-
-    try {
-      const supabase = createBrowserClient();
-      await supabase
-        .from('stores')
-        .update({ is_active: true })
-        .eq('id', storeId);
-      console.log('[AIProcessingStatus] Store activated ✅');
-    } catch (err) {
-      console.warn('[AIProcessingStatus] Could not activate store:', err);
-    }
+    console.log('[AIProcessingStatus] Redirecting to preview...');
 
     // Short delay to show the "Catalog ready!" UI before redirect
     setTimeout(() => {
-      window.location.href = `/${storeSlug}`;
+      window.location.href = `/preview/${storeId}`;
     }, 1200);
-  }, [storeId, storeSlug]);
+  }, [storeId]);
 
   // ── Advance progress step every 3s while loading ──────────────────────────
   useEffect(() => {
@@ -90,7 +79,7 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
       if (jobStatus === 'done') {
         setStatus('done');
         setProgress(100);
-        activateAndRedirect();
+        redirectToPreview();
       } else if (jobStatus === 'error') {
         setStatus('error');
         setErrorMsg(jobErrorMsg ?? 'An unknown error occurred during processing.');
@@ -152,7 +141,7 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
       if (pollTimer) clearInterval(pollTimer);
       supabase.removeChannel(channel);
     };
-  }, [storeId, storeSlug, activateAndRedirect]);
+  }, [storeId, storeSlug, redirectToPreview]);
 
   // ── Retry handler ─────────────────────────────────────────────────────────
   const handleRetry = async () => {
