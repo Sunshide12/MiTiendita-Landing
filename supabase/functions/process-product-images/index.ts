@@ -153,6 +153,11 @@ serve(async (req) => {
       throw new Error('Faltan parámetros: storeId y r2Paths son requeridos.')
     }
 
+    const apiKey = Deno.env.get('OPENROUTER_API_KEY')
+    if (!apiKey || apiKey === 'no-key') {
+      throw new Error('MISSING_API_KEY')
+    }
+
     console.log(`[AI Function] Iniciando job para store ${storeId} con ${r2Paths.length} imágenes`)
 
     const { data: job, error: jobError } = await supabaseAdmin

@@ -14,11 +14,11 @@ interface Props {
 // ─── Step config ──────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { label: 'Analyzing images...',        pct: 20 },
+  { label: 'Analyzing images...', pct: 20 },
   { label: 'Extracting product data...', pct: 40 },
   { label: 'Generating descriptions...', pct: 60 },
-  { label: 'Calculating prices...',      pct: 80 },
-  { label: 'Finalizing catalog...',      pct: 95 },
+  { label: 'Calculating prices...', pct: 80 },
+  { label: 'Finalizing catalog...', pct: 95 },
 ];
 
 const POLL_INTERVAL_MS = 3000; // Poll every 3 seconds as a Realtime fallback
@@ -26,10 +26,10 @@ const POLL_INTERVAL_MS = 3000; // Poll every 3 seconds as a Realtime fallback
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
-  const [status, setStatus]         = useState<JobStatus>('pending');
-  const [errorMsg, setErrorMsg]     = useState<string | null>(null);
-  const [stepIndex, setStepIndex]   = useState(0);
-  const [progress, setProgress]     = useState(5);
+  const [status, setStatus] = useState<JobStatus>('pending');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [progress, setProgress] = useState(5);
   const [isRetrying, setIsRetrying] = useState(false);
 
   // Use a ref to track if we've already initiated redirect to avoid double-fire
@@ -207,6 +207,16 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
 
   // ERROR state
   if (status === 'error') {
+    // Override message for demo
+    const isDemoError = errorMsg?.includes('MISSING_API_KEY') ||
+      errorMsg?.includes('401') ||
+      errorMsg?.toLowerCase().includes('key') ||
+      errorMsg?.includes('JSON válido');
+
+    const displayErrorMsg = isDemoError
+      ? "Esto es una prueba y actualmente no tiene la api key montada. Por favor pedir al desarrollador que te habilite para poder utilizar la IA"
+      : errorMsg;
+
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-6 text-center max-w-md mx-auto">
         <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -214,9 +224,9 @@ export default function AIProcessingStatus({ storeId, storeSlug }: Props) {
         </div>
         <div>
           <p className="text-lg font-semibold text-gray-900">Processing failed</p>
-          {errorMsg && (
-            <p className="mt-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-left font-mono break-all">
-              {errorMsg}
+          {displayErrorMsg && (
+            <p className="mt-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-left font-mono break-words">
+              {displayErrorMsg}
             </p>
           )}
         </div>
