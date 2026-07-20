@@ -275,7 +275,7 @@ export default function StorePreview({ store, products: initialProducts, categor
 
               {showPicker && (
                 <div style={{
-                  position: 'absolute', right: 0, top: 44,
+                  position: 'absolute', right: 0, top: 52,
                   backgroundColor: m.cardBg, borderRadius: 12, padding: 16,
                   boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
                   border: `1px solid ${m.border}`, minWidth: 230,
@@ -349,7 +349,7 @@ export default function StorePreview({ store, products: initialProducts, categor
           <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 44 }}>
             {productList.slice(0, 4).map((p, i) => (
               <div key={p.id} style={{
-                width: 110, height: 74, borderRadius: 8, overflow: 'hidden',
+                width: 'clamp(56px, 18vw, 110px)', aspectRatio: '110 / 74', borderRadius: 8, overflow: 'hidden',
                 opacity: .75, transform: `rotate(${(i - 1.5) * 3}deg)`,
                 border: `2px solid ${m.border}`,
               }}>
@@ -372,7 +372,7 @@ export default function StorePreview({ store, products: initialProducts, categor
             <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Categorías</h2>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(categories.length, 3)}, 1fr)`,
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
               gap: 16,
             }}>
               {categories.map((cat) => (
@@ -468,7 +468,7 @@ function IconButton({ children, mode, isDark, onClick, title }: {
 }) {
   return (
     <button onClick={onClick} title={title} style={{
-      width: 36, height: 36, borderRadius: 10,
+      width: 44, height: 44, borderRadius: 10,
       backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
       border: `1px solid ${mode.border}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -533,7 +533,7 @@ function ProductCard({ product, accent, accentHover, mode, isDark, onEditImage }
         )}
         <button onClick={(e) => { e.stopPropagation(); onEditImage(); }} title="Editar imagen"
           style={{
-            position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 8,
+            position: 'absolute', top: 8, right: 8, width: 44, height: 44, borderRadius: 8,
             backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
             border: '1px solid rgba(255,255,255,0.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -644,11 +644,11 @@ function ImageEditorModal({ product, onClose, onSaved }: {
               style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #444', backgroundColor: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>
               Cancelar
             </button>
-            <button onClick={() => save({ crop, zoom, rotation })} disabled={isSaving}
-              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', borderRadius: 8, border: 'none', backgroundColor: '#fff', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}>
-              {isSaving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</> : 'Guardar recorte'}
-            </button>
           </div>
+          <button onClick={() => save({ crop, zoom, rotation })} disabled={isSaving}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 20px', borderRadius: 8, border: 'none', backgroundColor: '#fff', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}>
+            {isSaving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</> : 'Guardar recorte'}
+          </button>
           {error && <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{error}</p>}
         </div>
       </div>
